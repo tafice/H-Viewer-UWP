@@ -22,7 +22,7 @@ namespace HViewer.Model
             this.referer = referer;
         }
 
-    public int getId()
+        public int getId()
         {
             return cid;
         }

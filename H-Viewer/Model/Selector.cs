@@ -14,8 +14,6 @@ namespace HViewer.Model
         {
         }
 
-        
-
         public Selector(String selector, String fun, String param, String regex, String replacement)
         {
             this.selector = selector;

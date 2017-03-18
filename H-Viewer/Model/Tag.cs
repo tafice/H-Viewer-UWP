@@ -25,9 +25,10 @@ namespace HViewer.Model
             this.url = url;
         }
 
-    public int getId()
+        public int getId()
         {
             return tid;
         }
     }
 }
+

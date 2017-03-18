@@ -10,8 +10,8 @@ namespace HViewer.Model
     {
         public Selector item, idCode, title, uploader, cover, category, datetime, rating, tags, description;
 
-    public Selector pictureId, pictureUrl, pictureThumbnail, pictureHighRes;
-    public Selector commentItem, commentAvatar, commentAuthor, commentDatetime, commentContent;
+        public Selector pictureId, pictureUrl, pictureThumbnail, pictureHighRes;
+        public Selector commentItem, commentAvatar, commentAuthor, commentDatetime, commentContent;
 
         public PictureRule pictureRule;
         public VideoRule videoRule;

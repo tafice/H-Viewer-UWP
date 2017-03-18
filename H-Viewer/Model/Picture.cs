@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace HViewer.Model
 {
-
     public class Picture
     {
         public int pid;
@@ -25,7 +24,7 @@ namespace HViewer.Model
             this.referer = referer;
         }
 
-    public int getId()
+        public int getId()
         {
             return pid;
         }

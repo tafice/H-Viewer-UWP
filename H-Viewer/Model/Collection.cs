@@ -45,59 +45,67 @@ namespace HViewer.Model
             this.preloaded = preloaded;
         }
 
-    public int getId()
+        public int getId()
         {
             return cid;
         }
 
-public override bool Equals(object obj)
-{
-    if (obj is Picture)
-    {
-        Collection item = (Collection)obj;
-
-        if (string.Equals(this.idCode, item.idCode) &&
-            string.Equals(this.title, item.title) &&
-            string.Equals(this.uploader, item.uploader) &&
-            string.Equals(this.cover, item.cover) &&
-            string.Equals(this.category, item.category) &&
-            string.Equals(this.datetime, item.datetime) &&
-            object.Equals(this.rating, item.rating))
+        public override bool Equals(object obj)
         {
-            return true;
+            if (obj is Picture)
+            {
+                Collection item = (Collection)obj;
+
+                if (string.Equals(this.idCode, item.idCode) &&
+                    string.Equals(this.title, item.title) &&
+                    string.Equals(this.uploader, item.uploader) &&
+                    string.Equals(this.cover, item.cover) &&
+                    string.Equals(this.category, item.category) &&
+                    string.Equals(this.datetime, item.datetime) &&
+                    object.Equals(this.rating, item.rating))
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
         }
-        else
+
+        public new bool Equals(object obj1, object obj2)
         {
-            return false;
+            if (obj1 == obj2)
+            {
+                return true;
+            }
+            if (obj1 == null || obj2 == null)
+            {
+                return false;
+            }
+            return obj1.Equals(obj2);
+        }
+
+        public long getChildId()
+        {
+            return cid;
+        }
+
+        public string getText()
+        {
+            return title;
+        }
+
+
+        public new string ToString()
+        {
+            return title;
         }
     }
-    else
-    {
-        return false;
-    }
-}
 
-public new bool Equals(object obj1, object obj2)
-{
-    if (obj1 == obj2)
-    {
-        return true;
-    }
-    if (obj1 == null || obj2 == null)
-    {
-        return false;
-    }
-    return obj1.Equals(obj2);
-}
 
-public long getChildId()
-{
-    return cid;
-}
-
-    public string getText()
-{
-    return title;
-}
-    }
 }

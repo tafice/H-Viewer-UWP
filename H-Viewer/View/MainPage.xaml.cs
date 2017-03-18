@@ -1,5 +1,6 @@
 ﻿using HViewer.Core;
 using HViewer.Model;
+using Microsoft.Toolkit.Uwp.UI.Controls;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,7 @@ using Windows.UI.Xaml.Controls.Primitives;
 using Windows.UI.Xaml.Data;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
+using Windows.UI.Xaml.Media.Imaging;
 using Windows.UI.Xaml.Navigation;
 using Windows.Web.Http;
 
@@ -47,7 +49,7 @@ namespace HViewer.View
         {
             using (HttpClient hc = new HttpClient())
             {
-                Uri uri = new Uri(@"https://raw.githubusercontent.com/H-Viewer-Sites/Index/master/sites/lofi.e-hentai.txt");
+                Uri uri = new Uri(txtBox.Text);
                 string s1 = await hc.GetStringAsync(uri);
 
                 if (!string.IsNullOrEmpty(s1))
@@ -102,6 +104,8 @@ namespace HViewer.View
                         {
                             List<Collection> list = new List<Collection>();
                             RuleParser.GetCollections(list, s, site.indexRule, url,true);
+
+                            gridView.ItemsSource = list;
                         }
                     }
                     else
@@ -135,6 +139,12 @@ namespace HViewer.View
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             DoWorkAsync();
+        }
+
+        private void Cover_ImageFailed(object sender, ExceptionRoutedEventArgs e)
+        {
+            ImageEx image = (ImageEx)sender;
+            image.Source = new BitmapImage(new Uri("ms-appx:///Assets/ImageLoadError.png"));
         }
     }
 }

@@ -80,17 +80,17 @@ namespace HViewer.Model
         }
 
 
-    public int getId()
+        public int getId()
         {
             return sid;
         }
 
-    public long getChildId()
+        public long getChildId()
         {
             return sid;
         }
 
-    public string getText()
+        public string getText()
         {
             return title;
         }
@@ -98,16 +98,16 @@ namespace HViewer.Model
 
         public List<KeyValuePair<string, string>> getHeaders()
         {
-            List<KeyValuePair<string, string>> headers = new List<KeyValuePair<string,string>>();
+            List<KeyValuePair<string, string>> headers = new List<KeyValuePair<string, string>>();
             if (!string.IsNullOrEmpty(cookie))
-                headers.Add(new KeyValuePair<string,string>("cookie", cookie));
+                headers.Add(new KeyValuePair<string, string>("cookie", cookie));
             if (!string.IsNullOrEmpty(header))
             {
                 var r = new Regex("([^\\r\\n]*?):([^\\r\\n]*)");
                 var m = r.Match(header);
                 while (r.IsMatch(header) && m.Groups.Count == 2)
                 {
-                    headers.Add(new KeyValuePair<string,string>(m.Groups[1].Value, m.Groups[2].Value));
+                    headers.Add(new KeyValuePair<string, string>(m.Groups[1].Value, m.Groups[2].Value));
                 }
             }
             return headers;
@@ -133,6 +133,5 @@ namespace HViewer.Model
             return RuleParser.ParseUrl(galleryUrl, page, idCode, "", array);
         }
 
-        
     }
 }

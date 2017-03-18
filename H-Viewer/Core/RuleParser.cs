@@ -1,6 +1,4 @@
-﻿using AngleSharp.Dom;
-using AngleSharp.Parser.Html;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,10 +7,12 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using AngleSharp.Dom.Html;
 using HViewer.Model;
 using HViewer.Utils;
-using AngleSharp.Extensions;
+using NSoup_UWP.Nodes;
+using NSoup_UWP;
+using NSoup_UWP.Select;
+using NSoup_UWP.Helper;
 
 namespace HViewer.Core
 {
@@ -161,32 +161,32 @@ namespace HViewer.Core
 
         public static List<Collection> GetCollections(List<Collection> collections, string text, Rule rule, string sourceUrl, bool noRegex)
         {
-                var parser = new HtmlParser();
-                var document = parser.Parse(text);
-                IEnumerable items = document.QuerySelectorAll(rule.item.selector);
+            Document doc = NSoupClient.Parse(text);
+
+            IEnumerable items = doc.Select(rule.item.selector);
 
             if(!IsJson(text))
             {
                 foreach (var item in items)
                 {
                     string itemStr;
-                    if (item is IElement)
+                    if (item is Element)
                     {
                         if ("attr".Equals(rule.item.fun))
                         {
-                            itemStr = ((IElement)item).GetAttribute(rule.title.param);
+                            itemStr = ((Element)item).Attr(rule.title.param);
                         }
                         else if ("html".Equals(rule.item.fun))
                         {
-                            itemStr = ((IElement)item).InnerHtml;
+                            itemStr = ((Element)item).Html();
                         }
                         else if ("text".Equals(rule.item.fun))
                         {
-                            itemStr = ((IElement)item).TextContent;
+                            itemStr = ((Element)item).Text();
                         }
                         else
                         {
-                            itemStr = ((IElement)item).OuterHtml;
+                            itemStr = ((Element)item).ToString();
                         }
                     }
                     else
@@ -298,13 +298,13 @@ namespace HViewer.Core
                 {
                     if (!IsJson(text))
                     {
-                        var doc = new HtmlParser().Parse(text);
-                        collection = GetCollectionDetail(collection, doc, rule, sourceUrl);
+                        var element = NSoupClient.Parse(text);
+                        collection = GetCollectionDetail(collection, element, rule, sourceUrl);
                     }
                     else
                     {
-                        var doc = JToken.Parse(text);
-                        collection = GetCollectionDetail(collection, doc, rule, sourceUrl);
+                        var elemet = JToken.Parse(text);
+                        collection = GetCollectionDetail(collection, elemet, rule, sourceUrl);
                     }
                 }
             }
@@ -332,24 +332,14 @@ namespace HViewer.Core
 
             string description = ParseSingleProperty(source, rule.rating, sourceUrl, false);
 
-            if (source is IElement)
+            if (source is Element)
             {
                 try
                 {
-                    var doc = new HtmlParser().Parse(description);
-
-                    var iframe = doc.QuerySelectorAll("iframe");
-                    foreach (var i in iframe)
-                    {
-                        doc.RemoveChild(i);
-                    }
-
-                    var script = doc.QuerySelectorAll("script");
-                    foreach (var i in script)
-                    {
-                        doc.RemoveChild(i);
-                    }
-                    description = doc.QuerySelector("body").InnerHtml;
+                    Element element = NSoupClient.Parse(description);
+                    element.Select("iframe").Remove();
+                    element.Select("script").Remove();
+                    description = element.Select("body").Html();
                 }
                 catch (Exception) { }
             }
@@ -362,7 +352,7 @@ namespace HViewer.Core
             {
                 rating = float.Parse(ratingStr);
             }
-            else if (ratingStr.isNumeric())
+            else if (StringUtil.IsNumeric(ratingStr))
             {
                 rating = float.Parse(ratingStr);
             }
@@ -373,7 +363,7 @@ namespace HViewer.Core
                 {
                     rating = result.Contains("NaN") ? 0 : float.Parse(result);
                 }
-                catch (ArgumentException)
+                catch (FormatException)
                 {
                     rating = Math.Min(ratingStr.Replace(" ", "").Length, 5);
                 }
@@ -384,9 +374,9 @@ namespace HViewer.Core
             List<Tag> tags = new List<Tag>();
             if (rule.tagRule != null && rule.tagRule.item != null)
             {
-                if (source is IElement)
+                if (source is Element)
                 {
-                    temp = ((IElement)source).QuerySelectorAll(rule.tagRule.item.selector);
+                    temp = ((Element)source).Select(rule.tagRule.item.selector);
                 }
                 else if (source is JToken)
                 {
@@ -459,9 +449,9 @@ namespace HViewer.Core
             {
                 if (pictureItem != null)
                 {
-                    if (source is IElement)
+                    if (source is Element)
                     {
-                        temp = ((IElement)source).QuerySelectorAll(pictureItem.selector);
+                        temp = ((Element)source).Select(pictureItem.selector);
                     }
                 }
                 else if (source is JToken)
@@ -541,9 +531,9 @@ namespace HViewer.Core
 
             if (rule.videoRule != null && rule.videoRule.item != null)
             {
-                if (source is IElement)
+                if (source is Element)
                 {
-                    temp = ((IElement)source).QuerySelectorAll(rule.videoRule.item.selector);
+                    temp = ((Element)source).Select(rule.videoRule.item.selector);
                 }
                 else if (source is JToken)
                 {
@@ -597,7 +587,7 @@ namespace HViewer.Core
             }
 
             Selector commentItem = null, commentAvatar = null, commentAuthor = null, commentDatetime = null, commentContent = null;
-            List<Comment> comments = new List<Comment>();
+            List<Model.Comment> comments = new List<Model.Comment>();
             if (rule.commentRule != null && rule.commentRule.item != null && rule.commentRule.content != null)
             {
                 commentItem = rule.commentRule.item;
@@ -618,9 +608,9 @@ namespace HViewer.Core
             {
                 if (pictureItem != null)
                 {
-                    if (source is IElement)
+                    if (source is Element)
                     {
-                        temp = ((IElement)source).QuerySelectorAll(pictureItem.selector);
+                        temp = ((Element)source).Select(pictureItem.selector);
                     }
                 }
                 else if (source is JToken)
@@ -657,7 +647,7 @@ namespace HViewer.Core
                     string cAuthor = ParseSingleProperty(element, commentAuthor, sourceUrl, false);
                     string cDatetime = ParseSingleProperty(element, commentDatetime, sourceUrl, false);
                     string cContent = ParseSingleProperty(element, commentContent, sourceUrl, false);
-                    comments.Add(new Comment(comments.Count + 1, cAvatar, cAuthor, cDatetime, cContent, sourceUrl));
+                    comments.Add(new Model.Comment(comments.Count + 1, cAvatar, cAuthor, cDatetime, cContent, sourceUrl));
                 }
             }
 
@@ -704,9 +694,9 @@ namespace HViewer.Core
             if(selector != null)
             {
                 string prop;
-                if(source is IElement)
+                if(source is Element)
                 {
-                    var temp = ("this".Equals(selector.selector)) ? new HtmlParser().Parse(((IElement)source).ToHtml()).All : ((IElement)source).QuerySelectorAll(selector.selector);
+                    var temp = ("this".Equals(selector.selector)) ? new Elements((Element)source) : ((Element)source).Select(selector.selector);
                     if(temp != null)
                     {
                         bool doJsonParse = !string.IsNullOrEmpty(selector.path);
@@ -714,15 +704,15 @@ namespace HViewer.Core
                         {
                             if ("attr".Equals(selector.fun))
                             {
-                                prop = elem.GetAttribute(selector.param);
+                                prop = elem.Attr(selector.param);
                             }
                             else if ("html".Equals(selector.fun))
                             {
-                                prop = elem.InnerHtml;
+                                prop = elem.Html();
                             }
                             else if("text".Equals(selector.fun))
                             {
-                                prop = elem.TextContent;
+                                prop = elem.Text();
                             }
                             else
                             {
@@ -793,27 +783,27 @@ namespace HViewer.Core
                             {
                                 try
                                 {
-                                    string newProp = "";
-                                    var element = ("this".Equals(selector.selector)) ? new HtmlParser().Parse(prop).All : new HtmlParser().Parse(prop).QuerySelectorAll(selector.selector);
+                                    string newProp;
+                                    var element = ("this".Equals(selector.selector)) ? new Elements(NSoupClient.Parse(prop)) : NSoupClient.Parse(prop).Select(selector.selector);
                                     if (element != null)
                                     {
                                         foreach (var elem in element)
                                         {
                                             if ("attr".Equals(selector.fun))
                                             {
-                                                prop = elem.GetAttribute(selector.param);
+                                                newProp = elem.Attr(selector.param);
                                             }
                                             else if ("html".Equals(selector.fun))
                                             {
-                                                prop = elem.InnerHtml;
+                                                newProp = elem.Html();
                                             }
                                             else if ("text".Equals(selector.fun))
                                             {
-                                                prop = elem.TextContent;
+                                                newProp = elem.Text();
                                             }
                                             else
                                             {
-                                                prop = elem.ToString();
+                                                newProp = elem.ToString();
                                             }
                                             if (!string.IsNullOrEmpty(newProp))
                                                 prop = newProp;
@@ -882,13 +872,20 @@ namespace HViewer.Core
 
         }
 
-        public static string GetPictureUrl(string html, Selector selector, string sourceUrl)
+        public static string GetPictureUrl(string text, Selector selector, string sourceUrl)
         {
             try
             {
-                var parser = new HtmlParser();
-                IHtmlDocument element = parser.Parse(html);
-                return ParseSingleProperty(element, selector, sourceUrl, true);
+                if(!IsJson(text))
+                {
+                    Document doc = NSoupClient.Parse(text);
+                    return ParseSingleProperty(doc, selector, sourceUrl, true);
+                }
+                else
+                {
+                    JToken jt = JToken.Parse(text);
+                    return ParseSingleProperty(jt, selector, sourceUrl, true);
+                }
             }
             catch (Exception)
             {
@@ -896,21 +893,31 @@ namespace HViewer.Core
             }
         }
 
-        /*
-        public static string GetVideoUrl(string html,string sourceUrl)
+        
+        public static List<string> GetVideoUrl(string html,string sourceUrl)
         {
+            List<string> videoUrls = new List<string>();
             try
             {
-                var parser = new HtmlParser();
-                IHtmlDocument element = parser.Parse(html);
-                return ParseSingleProperty(element, selector, sourceUrl, true);
+                Regex r = new Regex("https?[^\"'<>]*?[^\"' <>]+?\\.(?: mp4 | flv)[^\"'<>]*");
+                
+                
+                while(r.IsMatch(html))
+                {
+                    string videoUrl = r.Match(html).Value;
+                    if (string.IsNullOrEmpty(videoUrl))
+                        continue;
+                    videoUrl = RegexValidateUtil.getAbsoluteUrlFromRelative(videoUrl, sourceUrl);
+                    videoUrls.Add(videoUrl);
+                }
             }
             catch (Exception)
             {
-                return "";
+                
             }
+            return videoUrls;
         }
-        */
+        
 
     }
 }

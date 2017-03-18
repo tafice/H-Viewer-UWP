@@ -22,7 +22,7 @@ namespace HViewer.Model
             this.content = content;
         }
 
-    public int getId()
+        public int getId()
         {
             return vid;
         }
