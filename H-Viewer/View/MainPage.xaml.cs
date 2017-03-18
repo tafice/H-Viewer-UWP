@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Storage.Streams;
+using Windows.UI.Popups;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -96,14 +97,14 @@ namespace HViewer.View
 
                             s = Encoding.GetEncoding("UTF-8").GetString(resultByteArray, 0, resultByteArray.Length);
                         }
-                        catch (Exception)
+                        catch (Exception e)
                         {
-                          
+                            new MessageDialog(e.StackTrace, e.Message).ShowAsync();
                         }
                         if (!string.IsNullOrEmpty(s))
                         {
                             List<Collection> list = new List<Collection>();
-                            RuleParser.GetCollections(list, s, site.indexRule, url,true);
+                            RuleParser.GetCollections(list, s, site.indexRule, url, false);
 
                             gridView.ItemsSource = list;
                         }
@@ -145,6 +146,12 @@ namespace HViewer.View
         {
             ImageEx image = (ImageEx)sender;
             image.Source = new BitmapImage(new Uri("ms-appx:///Assets/ImageLoadError.png"));
+        }
+
+        private void gridView_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            var dialog = new MessageDialog(((Collection)e.ClickedItem).ToString(), "Collection");
+            dialog.ShowAsync();
         }
     }
 }

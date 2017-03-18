@@ -196,7 +196,7 @@ namespace HViewer.Core
                     {
                         var regex = new Regex(rule.item.regex);
                         Match m = regex.Match(itemStr);
-                        if (regex.IsMatch(itemStr))
+                        if (!regex.IsMatch(itemStr))
                         {
                             continue;
                         }
@@ -242,25 +242,25 @@ namespace HViewer.Core
                     if(!noRegex && rule.item.regex != null)
                     {
                         var regex = new Regex(rule.item.regex);
-                        var mc = regex.Matches(rule.item.regex);
-                        if(mc.Count == 0)
+                        var m = regex.Match(itemStr);
+                        if(!regex.IsMatch(itemStr))
                         {
                             continue;
                         }
-                        else if (mc.Count >=1)
+                        else if (m.Groups.Count >=1)
                         {
                             if (rule.item.replacement != null)
                             {
                                 itemStr = rule.item.replacement;
-                                for (int i = 1; i < mc.Count; i++)
+                                for (int i = 1; i < m.Groups.Count; i++)
                                 {
-                                    string replace = mc[i].ToString();
+                                    string replace = m.Groups[i].Value.ToString();
                                     itemStr = itemStr.Replace(@"\$" + i, (replace != null) ? replace : "");
                                 }
                             }
                             else
                             {
-                                itemStr = mc[1].ToString();
+                                itemStr = m.Groups[1].Value.ToString();
                             }
                         }
                     }
@@ -832,32 +832,39 @@ namespace HViewer.Core
             if (selector.regex != null)
             {
                 var r = new Regex(selector.regex);
-                var mc = r.Matches(prop);
+                
 
-                foreach (Match m in mc)
+                if(r.IsMatch(prop))
                 {
+                    var m = r.Match(prop);
 
-                    if (selector.replacement != null)
+                    do
                     {
-                        prop = selector.replacement;
-                        for (int i = 1; i <= r.Match(prop).Groups.Count; i++)
+                        if (selector.replacement != null)
                         {
-                            string replace = r.Match(prop).Groups[i].Value;
-                            prop = prop.Replace("\\$" + i, (replace != null) ? replace : "");
+                            prop = selector.replacement;
+                            for (int i = 1; i <= m.Groups.Count; i++)
+                            {
+                                string replace = m.Groups[i].Value;
+                                prop = prop.Replace("$" + i, (replace != null) ? replace : "");
+                            }
                         }
-                    }
-                    else
-                    {
-                        prop = m.Groups[1].Value;
-                    }
-                    if (isUrl)
-                    {
-                        if (string.IsNullOrEmpty(prop))
-                            break;
-                        prop = RegexValidateUtil.getAbsoluteUrlFromRelative(prop, sourceUrl);
-                    }
-                    props.Add(prop.Trim());
+                        else
+                        {
+                            prop = m.Groups[1].Value;
+                        }
+                        if (isUrl)
+                        {
+                            if (string.IsNullOrEmpty(prop))
+                                break;
+                            prop = RegexValidateUtil.getAbsoluteUrlFromRelative(prop, sourceUrl);
+                        }
+                        props.Add(System.Net.WebUtility.HtmlEncode(prop.Trim()));
+                    } while ((m.NextMatch().Success && m.Groups.Count >= 1));
+                    
                 }
+
+
             }
             else
             {
@@ -865,7 +872,7 @@ namespace HViewer.Core
                 {
                     prop = RegexValidateUtil.getAbsoluteUrlFromRelative(prop, sourceUrl);
                 }
-                props.Add(prop.Trim());
+                props.Add(System.Net.WebUtility.HtmlEncode(prop.Trim()));
             }
 
             return props;

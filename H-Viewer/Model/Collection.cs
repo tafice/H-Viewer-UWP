@@ -103,7 +103,7 @@ namespace HViewer.Model
 
         public new string ToString()
         {
-            return title;
+            return title + "\nCover: " + cover;
         }
     }
 

@@ -45,6 +45,7 @@
                   SelectionMode="None"
                   IsItemClickEnabled="True"
                   IncrementalLoadingTrigger="Edge"
+                  ItemClick="gridView_ItemClick"
                   ItemTemplate="{StaticResource SampleTemplate}" />
 
     </Grid>
