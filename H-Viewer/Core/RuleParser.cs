@@ -1,0 +1,916 @@
+﻿using AngleSharp.Dom;
+using AngleSharp.Parser.Html;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using AngleSharp.Dom.Html;
+using HViewer.Model;
+using HViewer.Utils;
+using AngleSharp.Extensions;
+
+namespace HViewer.Core
+{
+    public class RuleParser
+    {
+        public static Dictionary<string, string> ParseUrl(string url)
+        {
+            Dictionary<string, string> map = new Dictionary<string, string>();
+
+            if (string.IsNullOrEmpty(url))
+                return map;
+
+            Regex r = new Regex(@"\{([^\{\}]*?):([^\{\}]*?)\}", RegexOptions.Singleline);
+            var matches = r.Matches(url);
+            foreach (Match match in matches)
+            {
+                map.Add(match.Groups[1].Value, match.Groups[2].Value);
+            }
+
+            Regex r2 = new Regex(@"\{([^{}]*?):([^{}]*?\{[^{}]*?\}[^{}]*?)\}", RegexOptions.Singleline);
+            var matches2 = r2.Matches(url);
+            foreach (Match match in matches2)
+            {
+                map.Add(match.Groups[1].Value, match.Groups[2].Value);
+            }
+
+            return map;
+        }
+
+        public static string ParseUrl(string url, int page, string idCode, string keyword, Object[] objs)
+        {
+            Dictionary<string, string> matchResult = RuleParser.ParseUrl(url);
+            string pageStr = matchResult["page"];
+            int startPage = 0;
+            int pageStep = 1;
+
+            try
+            {
+                if ("minid".Equals(pageStr) && objs != null)
+                {
+                    int min = int.MinValue;
+                    foreach (object obj in objs)
+                    {
+                        if (obj is Collection)
+                            min = Math.Min(min, int.Parse(((Collection)obj).idCode.Replace("[^0-9]", "")));
+                        else if (obj is Picture)
+                            min = Math.Min(min, ((Picture)obj).pid);
+                    }
+                    page = min;
+                }
+                else if ("maxid".Equals(pageStr) && objs != null)
+                {
+                    int max = int.MaxValue;
+                    foreach (object obj in objs)
+                    {
+                        if (obj is Collection)
+                            max = Math.Min(max, int.Parse(((Collection)obj).idCode.Replace("[^0-9]", "")));
+                        else if (obj is Picture)
+                            max = Math.Min(max, ((Picture)obj).pid);
+                    }
+                    page = max;
+                }
+                else if (pageStr != null)
+                {
+                    string[] pageStrs = pageStr.Split(';');
+                    if (pageStrs.Length > 1)
+                    {
+                        pageStep = int.Parse(pageStrs[1]);
+                        startPage = int.Parse(pageStrs[0]);
+                    }
+                    else
+                    {
+                        pageStep = 1;
+                        startPage = int.Parse(pageStr);
+                    }
+                }
+            }
+            catch (FormatException) { }
+
+            int realPage = page + (page - startPage) * (pageStep - 1);
+            url = url.Replace("\\{pageStr:(.*?\\{.*?\\}.*?)\\}", (realPage == startPage) ? "" : matchResult["pageStr"])
+                .Replace("\\{page:.*?\\}", "" + realPage)
+                .Replace("\\{keyword:.*?\\}", keyword)
+                .Replace("\\{idCode:\\}", idCode);
+
+            /* TODO
+            if (matchResult.ContainsKey("date")
+            {
+                string dateStr = matchResult["date"];
+                int index = dateStr.LastIndexOf(':');
+                string firstParam = dateStr.Substring(0, index);
+                string lastParam = dateStr.Substring(index + 1);
+                DateTime calendar = new DateTime();
+                DateTime dateFormat;
+                try
+                {
+                    int offset = int.Parse(lastParam);
+                    dateFormat = DateTime.ParseExact(firstParam, "yyyy-MM-dd HH:mm:ss",null);
+                    calendar.AddDays(calendar.Day + offset);
+
+                }catch(FormatException e)
+                {
+                    dateFormat = DateTime.ParseExact(dateStr, "yyyy-MM-dd HH:mm:ss", null);
+                }
+                string currDate = calendar.ToString();
+            }
+            if (matchResult.ContainsKey("time")
+            {
+                string dateStr = matchResult["time"];
+                int index = dateStr.LastIndexOf(':');
+                string firstParam = dateStr.Substring(0, index);
+                string lastParam = dateStr.Substring(index + 1);
+                DateTime calendar = new DateTime();
+                DateTime dateFormat;
+                try
+                {
+                    int offset = int.Parse(lastParam);
+                    dateFormat = DateTime.ParseExact(firstParam, "yyyy-MM-dd HH:mm:ss", null);
+                    calendar.AddDays(calendar.Second + offset);
+
+                }
+                catch (FormatException e)
+                {
+                    dateFormat = DateTime.ParseExact(dateStr, "yyyy-MM-dd HH:mm:ss", null);
+                }
+                string currDate = calendar.ToString();
+            }
+            */
+            return url;
+        }
+
+        public static bool IsJson(string str)
+        {
+            if (string.IsNullOrEmpty(str))
+            {
+                return false;
+            }
+            str = str.Trim();
+            return str.StartsWith("{") || str.StartsWith("[");
+        }
+
+        public static List<Collection> GetCollection(List<Collection> collections, string text, Rule rule, string sourceUrl)
+        {
+            return GetCollections(collections, text, rule, sourceUrl, false);
+        }
+
+        public static List<Collection> GetCollections(List<Collection> collections, string text, Rule rule, string sourceUrl, bool noRegex)
+        {
+                var parser = new HtmlParser();
+                var document = parser.Parse(text);
+                IEnumerable items = document.QuerySelectorAll(rule.item.selector);
+
+            if(!IsJson(text))
+            {
+                foreach (var item in items)
+                {
+                    string itemStr;
+                    if (item is IElement)
+                    {
+                        if ("attr".Equals(rule.item.fun))
+                        {
+                            itemStr = ((IElement)item).GetAttribute(rule.title.param);
+                        }
+                        else if ("html".Equals(rule.item.fun))
+                        {
+                            itemStr = ((IElement)item).InnerHtml;
+                        }
+                        else if ("text".Equals(rule.item.fun))
+                        {
+                            itemStr = ((IElement)item).TextContent;
+                        }
+                        else
+                        {
+                            itemStr = ((IElement)item).OuterHtml;
+                        }
+                    }
+                    else
+                        continue;
+
+                    if (!noRegex && rule.item.regex != null)
+                    {
+                        var regex = new Regex(rule.item.regex);
+                        Match m = regex.Match(itemStr);
+                        if (regex.IsMatch(itemStr))
+                        {
+                            continue;
+                        }
+                        else if (m.Groups.Count >= 1)
+                        {
+
+                            if (rule.item.replacement != null)
+                            {
+                                itemStr = rule.item.replacement;
+                                for (int i = 1; i < m.Groups.Count; i++)
+                                {
+                                    string replace = m.Groups[i].Value.ToString();
+                                    itemStr = itemStr.Replace(@"\$" + i, (replace != null) ? replace : "");
+                                }
+                            }
+                            else
+                            {
+                                itemStr = m.Groups[1].Value.ToString();
+                            }
+                        }
+                    }
+
+                    if (rule.item.path != null && IsJson(itemStr))
+                    {
+                        collections = GetCollections(collections, itemStr, rule, sourceUrl, true);
+                    }
+                    else
+                    {
+                        Collection collection = new Collection(collections.Count + 1);
+                        collection = GetCollectionDetail(collection, item, rule, sourceUrl);
+                        collections.Add(collection);
+                    }
+                }
+            }
+            else
+            {
+                JObject o = JObject.Parse(text);
+                var jt = o.SelectTokens(rule.item.path);
+                items = jt;
+                foreach(object item in items)
+                {
+                    string itemStr = item.ToString();
+                    if(!noRegex && rule.item.regex != null)
+                    {
+                        var regex = new Regex(rule.item.regex);
+                        var mc = regex.Matches(rule.item.regex);
+                        if(mc.Count == 0)
+                        {
+                            continue;
+                        }
+                        else if (mc.Count >=1)
+                        {
+                            if (rule.item.replacement != null)
+                            {
+                                itemStr = rule.item.replacement;
+                                for (int i = 1; i < mc.Count; i++)
+                                {
+                                    string replace = mc[i].ToString();
+                                    itemStr = itemStr.Replace(@"\$" + i, (replace != null) ? replace : "");
+                                }
+                            }
+                            else
+                            {
+                                itemStr = mc[1].ToString();
+                            }
+                        }
+                    }
+                    if (rule.item.path != null && IsJson(itemStr))
+                    {
+                        collections = GetCollections(collections, itemStr, rule, sourceUrl, true);
+                    }
+                    else
+                    {
+                        Collection collection = new Collection(collections.Count + 1);
+                        collection = GetCollectionDetail(collection, item, rule, sourceUrl);
+                        collections.Add(collection);
+                    }
+                }
+            }
+            
+
+            return collections;
+        }
+
+        public static Collection GetCollectionDetail(Collection collection,string text, Rule rule, string sourceUrl)
+        {
+            if (rule == null)
+                return collection;
+            try
+            {
+                if (rule.item != null && rule.pictureRule != null && rule.pictureRule.item != null)
+                {
+                    List<Collection> collections = new List<Collection>();
+                    collections.Add(collection);
+                    collection = GetCollection(collections, text, rule, sourceUrl)[0];
+
+                }
+                else
+                {
+                    if (!IsJson(text))
+                    {
+                        var doc = new HtmlParser().Parse(text);
+                        collection = GetCollectionDetail(collection, doc, rule, sourceUrl);
+                    }
+                    else
+                    {
+                        var doc = JToken.Parse(text);
+                        collection = GetCollectionDetail(collection, doc, rule, sourceUrl);
+                    }
+                }
+            }
+            catch(Exception)
+            {
+
+            }
+
+            return collection;
+        }
+
+        public static Collection GetCollectionDetail(Collection collection, Object source, Rule rule, string sourceUrl)
+        {
+            string idCode = ParseSingleProperty(source, rule.idCode, sourceUrl, false);
+
+            string title = ParseSingleProperty(source, rule.title, sourceUrl, false);
+
+            string uploader = ParseSingleProperty(source, rule.uploader, sourceUrl, false);
+
+            string cover = ParseSingleProperty(source, rule.cover, sourceUrl, true);
+
+            string category = ParseSingleProperty(source, rule.category, sourceUrl, false);
+
+            string datetime = ParseSingleProperty(source, rule.datetime, sourceUrl, false);
+
+            string description = ParseSingleProperty(source, rule.rating, sourceUrl, false);
+
+            if (source is IElement)
+            {
+                try
+                {
+                    var doc = new HtmlParser().Parse(description);
+
+                    var iframe = doc.QuerySelectorAll("iframe");
+                    foreach (var i in iframe)
+                    {
+                        doc.RemoveChild(i);
+                    }
+
+                    var script = doc.QuerySelectorAll("script");
+                    foreach (var i in script)
+                    {
+                        doc.RemoveChild(i);
+                    }
+                    description = doc.QuerySelector("body").InnerHtml;
+                }
+                catch (Exception) { }
+            }
+
+            string ratingStr = ParseSingleProperty(source, rule.rating, sourceUrl, false);
+
+            float rating;
+
+            if (Regex.IsMatch(ratingStr, "\\d+(.\\d+)?") && ratingStr.IndexOf(".") > 0)
+            {
+                rating = float.Parse(ratingStr);
+            }
+            else if (ratingStr.isNumeric())
+            {
+                rating = float.Parse(ratingStr);
+            }
+            else
+            {
+                string result = new MathUtil().RunExpress(ratingStr);
+                try
+                {
+                    rating = result.Contains("NaN") ? 0 : float.Parse(result);
+                }
+                catch (ArgumentException)
+                {
+                    rating = Math.Min(ratingStr.Replace(" ", "").Length, 5);
+                }
+            }
+
+            IEnumerable temp = null;
+
+            List<Tag> tags = new List<Tag>();
+            if (rule.tagRule != null && rule.tagRule.item != null)
+            {
+                if (source is IElement)
+                {
+                    temp = ((IElement)source).QuerySelectorAll(rule.tagRule.item.selector);
+                }
+                else if (source is JToken)
+                {
+                    JObject o = JObject.Parse(source.ToString());
+                    var jt = o.SelectTokens(rule.tagRule.item.path);
+                    if (jt is JArray)
+                    {
+                        temp = jt.ToList();
+                    }
+                    else
+                    {
+                        temp = jt;
+                    }
+                }
+                else
+                    return collection;
+
+                foreach (object element in temp)
+                {
+                    if (rule.tagRule.item.regex != null)
+                    {
+                        var r = new Regex(rule.tagRule.item.regex);
+                        var mc = r.Matches(element.ToString());
+                        if (mc.Count == 0)
+                            continue;
+                    }
+                    string tagTitle = ParseSingleProperty(element, rule.tagRule.title, sourceUrl, false);
+                    string tagUrl = ParseSingleProperty(element, rule.tagRule.url, sourceUrl, true);
+
+                    if (string.IsNullOrEmpty(tagUrl))
+                    {
+                        tagUrl = null;
+                    }
+                    tags.Add(new Tag(tags.Count + 1, tagTitle, tagUrl));
+                }
+            }
+            else if (rule.tags != null)
+            {
+                List<string> tagStrs = ParseSinglePropertyMatchAll(source, rule.tags, sourceUrl, false);
+                foreach (string tagStr in tagStrs)
+                {
+                    if (!string.IsNullOrEmpty(tagStr))
+                    {
+                        tags.Add(new Tag(tags.Count + 1, tagStr));
+                    }
+                }
+            }
+
+            List<Picture> pictures = new List<Picture>();
+
+            Selector pictureId = null, pictureItem = null, pictureThumbnail = null, pictureUrl = null, pictureHighRes = null;
+            if (rule.pictureRule != null && rule.pictureRule.url != null && rule.pictureRule.thumbnail != null)
+            {
+                pictureId = rule.pictureRule.id;
+                pictureItem = rule.pictureRule.item;
+                pictureThumbnail = rule.pictureRule.thumbnail;
+                pictureUrl = rule.pictureRule.url;
+                pictureHighRes = rule.pictureRule.highRes;
+            }
+            else if (rule.pictureUrl != null && rule.pictureThumbnail != null)
+            {
+                pictureId = rule.pictureId;
+                pictureItem = rule.item;
+                pictureThumbnail = rule.pictureThumbnail;
+                pictureUrl = rule.pictureUrl;
+                pictureHighRes = rule.pictureHighRes;
+            }
+
+            if (pictureUrl != null && pictureThumbnail != null)
+            {
+                if (pictureItem != null)
+                {
+                    if (source is IElement)
+                    {
+                        temp = ((IElement)source).QuerySelectorAll(pictureItem.selector);
+                    }
+                }
+                else if (source is JToken)
+                {
+                    JObject o = JObject.Parse(source.ToString());
+                    var jt = o.SelectTokens(pictureItem.path);
+
+                    if (jt is JArray)
+                    {
+                        temp = jt.ToList();
+                    }
+                    else
+                    {
+                        temp = jt;
+                    }
+                }
+                else
+                {
+                    return collection;
+                }
+
+                foreach (object element in temp)
+                {
+                    if (pictureItem.regex != null)
+                    {
+                        var r = new Regex(pictureItem.regex);
+                        var mc = r.Matches(element.ToString());
+                        if (mc.Count == 0)
+                        {
+                            continue;
+                        }
+                    }
+                    string pId = ParseSingleProperty(element, pictureId, sourceUrl, false);
+                    int pid;
+                    try
+                    {
+                        pid = int.Parse(pId);
+                    }
+                    catch (Exception)
+                    {
+                        pid = 0;
+                    }
+                    pid = (pid != 0) ? pid : (pictures.Count > 0) ? pictures[pictures.Count - 1].pid + 1 : pictures.Count + 1;
+                    string pUrl = ParseSingleProperty(element, pictureUrl, sourceUrl, true);
+                    string PHighRes = ParseSingleProperty(element, pictureThumbnail, sourceUrl, true);
+                    string pThumbnail = ParseSingleProperty(element, pictureThumbnail, sourceUrl, true);
+                    pictures.Add(new Picture(pid, pUrl, pThumbnail, PHighRes, sourceUrl));
+                }
+            }
+            else
+            {
+                List<string> pids = ParseSinglePropertyMatchAll(source, pictureId, sourceUrl, false);
+                List<string> urls = ParseSinglePropertyMatchAll(source, pictureUrl, sourceUrl, true);
+                List<string> thumbnails = ParseSinglePropertyMatchAll(source, pictureThumbnail, sourceUrl, true);
+                List<string> highReses = ParseSinglePropertyMatchAll(source, pictureHighRes, sourceUrl, true);
+                for (int i = 0; i < urls.Count; i++)
+                {
+                    string pId = (i < pids.Count) ? pids[i] : "";
+                    int pid;
+                    try
+                    {
+                        pid = int.Parse(pId);
+                    }
+                    catch (Exception)
+                    {
+                        pid = 0;
+                    }
+                    pid = (pid != 0) ? pid : (pictures.Count > 0) ? pictures[pictures.Count - 1].pid + 1 : pictures.Count + 1;
+                    string url = urls[i];
+                    string thumbnail = (i < thumbnails.Count) ? thumbnails[i] : "";
+                    string highRes = (i < highReses.Count) ? highReses[i] : "";
+                    pictures.Add(new Picture(pid, url, thumbnail, highRes, sourceUrl));
+                }
+            }
+
+            List<Video> videos = new List<Video>();
+
+            if (rule.videoRule != null && rule.videoRule.item != null)
+            {
+                if (source is IElement)
+                {
+                    temp = ((IElement)source).QuerySelectorAll(rule.videoRule.item.selector);
+                }
+                else if (source is JToken)
+                {
+                    JObject o = JObject.Parse(source.ToString());
+                    var jt = o.SelectTokens(pictureItem.path);
+
+                    if (jt is JArray)
+                    {
+                        temp = jt.ToList();
+                    }
+                    else
+                    {
+                        temp = jt;
+                    }
+                }
+                else
+                {
+                    return collection;
+                }
+
+                foreach (object element in temp)
+                {
+                    if (rule.videoRule.item.regex != null)
+                    {
+                        var r = new Regex(rule.videoRule.item.regex);
+                        var mc = r.Matches(element.ToString());
+                        if (mc.Count == 0)
+                        {
+                            continue;
+                        }
+                    }
+                    string vId = ParseSingleProperty(element, rule.videoRule.id, sourceUrl, false);
+                    int vid;
+                    try
+                    {
+                        vid = int.Parse(vId);
+                    }
+                    catch (Exception)
+                    {
+                        vid = 0;
+                    }
+                    vid = (vid != 0) ? vid : (videos.Count > 0) ? videos[videos.Count - 1].vid + 1 : videos.Count + 1;
+                    string vThumbnail = ParseSingleProperty(element, rule.videoRule.thumbnail, sourceUrl, true);
+                    if (string.IsNullOrEmpty(vThumbnail))
+                    {
+                        vThumbnail = (string.IsNullOrEmpty(cover)) ? collection.cover : cover;
+                    }
+                    string vContent = ParseSingleProperty(element, rule.videoRule.content, sourceUrl, true);
+                    videos.Add(new Video(vid, vThumbnail, vContent));
+                }
+            }
+
+            Selector commentItem = null, commentAvatar = null, commentAuthor = null, commentDatetime = null, commentContent = null;
+            List<Comment> comments = new List<Comment>();
+            if (rule.commentRule != null && rule.commentRule.item != null && rule.commentRule.content != null)
+            {
+                commentItem = rule.commentRule.item;
+                commentAvatar = rule.commentRule.avatar;
+                commentAuthor = rule.commentRule.author;
+                commentDatetime = rule.commentRule.datetime;
+                commentContent = rule.commentRule.content;
+            }
+            else if (rule.commentItem != null && rule.commentContent != null)
+            {
+                commentItem = rule.commentItem;
+                commentAvatar = rule.commentAvatar;
+                commentAuthor = rule.commentAuthor;
+                commentDatetime = rule.commentDatetime;
+                commentContent = rule.commentContent;
+            }
+            if (pictureUrl != null && pictureThumbnail != null)
+            {
+                if (pictureItem != null)
+                {
+                    if (source is IElement)
+                    {
+                        temp = ((IElement)source).QuerySelectorAll(pictureItem.selector);
+                    }
+                }
+                else if (source is JToken)
+                {
+                    JObject o = JObject.Parse(source.ToString());
+                    var jt = o.SelectTokens(pictureItem.path);
+
+                    if (jt is JArray)
+                    {
+                        temp = jt.ToList();
+                    }
+                    else
+                    {
+                        temp = jt;
+                    }
+                }
+                else
+                {
+                    return collection;
+                }
+
+                foreach (object element in temp)
+                {
+                    if (pictureItem.regex != null)
+                    {
+                        var r = new Regex(pictureItem.regex);
+                        var mc = r.Matches(element.ToString());
+                        if (mc.Count == 0)
+                        {
+                            continue;
+                        }
+                    }
+                    string cAvatar = ParseSingleProperty(element, commentAvatar, sourceUrl, false);
+                    string cAuthor = ParseSingleProperty(element, commentAuthor, sourceUrl, false);
+                    string cDatetime = ParseSingleProperty(element, commentDatetime, sourceUrl, false);
+                    string cContent = ParseSingleProperty(element, commentContent, sourceUrl, false);
+                    comments.Add(new Comment(comments.Count + 1, cAvatar, cAuthor, cDatetime, cContent, sourceUrl));
+                }
+            }
+
+            if (!string.IsNullOrEmpty(idCode))
+                collection.idCode = idCode;
+            if (!string.IsNullOrEmpty(title))
+                collection.title = title;
+            if (!string.IsNullOrEmpty(uploader))
+                collection.uploader = uploader;
+            if (!string.IsNullOrEmpty(cover))
+                collection.cover = cover;
+            if (!string.IsNullOrEmpty(category))
+                collection.category = category;
+            if (!string.IsNullOrEmpty(datetime))
+                collection.datetime = datetime;
+            if (!string.IsNullOrEmpty(description))
+                collection.description = description;
+            if (rating > 0)
+                collection.rating = rating;
+            if (!string.IsNullOrEmpty(sourceUrl))
+                collection.referer = sourceUrl;
+            if (tags != null && tags.Count > 0)
+                collection.tags = tags;
+            if (pictures != null && pictures.Count > 0)
+                collection.pictures = pictures;
+            if (videos != null && videos.Count > 0)
+                collection.videos = videos;
+            if (comments != null && comments.Count > 0)
+                collection.comments = comments;
+            return collection;
+
+        }
+
+        public static string ParseSingleProperty(object source,Selector selector,string sourceUrl,bool isUrl)
+        {
+            List<string> props = ParseSinglePropertyMatchAll(source, selector, sourceUrl, isUrl);
+            return (props.Count > 0) ? props[0] : "";
+        }
+
+        public static List<string> ParseSinglePropertyMatchAll(object source,Selector selector,string sourceUrl,bool isUrl)
+        {
+            List<string> props = new List<string>();
+
+            if(selector != null)
+            {
+                string prop;
+                if(source is IElement)
+                {
+                    var temp = ("this".Equals(selector.selector)) ? new HtmlParser().Parse(((IElement)source).ToHtml()).All : ((IElement)source).QuerySelectorAll(selector.selector);
+                    if(temp != null)
+                    {
+                        bool doJsonParse = !string.IsNullOrEmpty(selector.path);
+                        foreach(var elem in temp)
+                        {
+                            if ("attr".Equals(selector.fun))
+                            {
+                                prop = elem.GetAttribute(selector.param);
+                            }
+                            else if ("html".Equals(selector.fun))
+                            {
+                                prop = elem.InnerHtml;
+                            }
+                            else if("text".Equals(selector.fun))
+                            {
+                                prop = elem.TextContent;
+                            }
+                            else
+                            {
+                                prop = elem.ToString();
+                            }
+
+
+                            if (doJsonParse)
+                            {
+                                props = GetPropertyAfterRegex(props, prop, selector, sourceUrl, false);
+                            }
+                            else
+                            {
+                                props = GetPropertyAfterRegex(props, prop, selector, sourceUrl, isUrl);
+                            }
+                        }
+
+                        if(doJsonParse)
+                        {
+                            try
+                            {
+                                for(int i =0; i< props.Count;i++)
+                                {
+                                    prop = props[i];
+                                    object tempItem = JToken.Parse(prop).SelectToken(selector.path);
+                                    if (tempItem is JValue)
+                                        prop = ((JValue)tempItem).ToString();
+                                    else
+                                        prop = tempItem.ToString();
+                                    if(!string.IsNullOrEmpty(prop))
+                                    {
+                                        if(isUrl)
+                                            prop = RegexValidateUtil.getAbsoluteUrlFromRelative(prop, sourceUrl);
+
+                                        props[i] = prop;
+                                    }
+                                }
+                            }
+                            catch(Exception)
+                            {
+
+                            }
+                        }
+                    }
+                }
+                else if(source is JToken)
+                {
+                    List<JToken> temp = new List<JToken>();
+
+                    try
+                    {
+                        var elem = ((JToken)source).SelectTokens(selector.path);
+                        temp = elem.ToList();
+                        
+                    }
+                    catch(Exception)
+                    {
+
+                    }
+
+                    if (temp != null)
+                    {
+                        foreach (JToken item in temp)
+                        {
+                            prop = item.ToString();
+
+                            if (!string.IsNullOrEmpty(selector.selector))
+                            {
+                                try
+                                {
+                                    string newProp = "";
+                                    var element = ("this".Equals(selector.selector)) ? new HtmlParser().Parse(prop).All : new HtmlParser().Parse(prop).QuerySelectorAll(selector.selector);
+                                    if (element != null)
+                                    {
+                                        foreach (var elem in element)
+                                        {
+                                            if ("attr".Equals(selector.fun))
+                                            {
+                                                prop = elem.GetAttribute(selector.param);
+                                            }
+                                            else if ("html".Equals(selector.fun))
+                                            {
+                                                prop = elem.InnerHtml;
+                                            }
+                                            else if ("text".Equals(selector.fun))
+                                            {
+                                                prop = elem.TextContent;
+                                            }
+                                            else
+                                            {
+                                                prop = elem.ToString();
+                                            }
+                                            if (!string.IsNullOrEmpty(newProp))
+                                                prop = newProp;
+                                        }
+                                    }
+                                }
+                                catch (Exception)
+                                {
+
+                                }
+
+                            }
+                            if (!string.IsNullOrEmpty(prop) && !"null".Equals(prop.Trim()))
+                                props = GetPropertyAfterRegex(props, prop, selector, sourceUrl, isUrl);
+                        }
+                    }
+                }
+            }
+            if (props.Count == 0)
+                props.Add("");
+            return props;
+        }
+
+        public static List<string> GetPropertyAfterRegex(List<string> props, string prop, Selector selector, string sourceUrl, bool isUrl)
+        {
+            if (selector.regex != null)
+            {
+                var r = new Regex(selector.regex);
+                var mc = r.Matches(prop);
+
+                foreach (Match m in mc)
+                {
+
+                    if (selector.replacement != null)
+                    {
+                        prop = selector.replacement;
+                        for (int i = 1; i <= r.Match(prop).Groups.Count; i++)
+                        {
+                            string replace = r.Match(prop).Groups[i].Value;
+                            prop = prop.Replace("\\$" + i, (replace != null) ? replace : "");
+                        }
+                    }
+                    else
+                    {
+                        prop = m.Groups[1].Value;
+                    }
+                    if (isUrl)
+                    {
+                        if (string.IsNullOrEmpty(prop))
+                            break;
+                        prop = RegexValidateUtil.getAbsoluteUrlFromRelative(prop, sourceUrl);
+                    }
+                    props.Add(prop.Trim());
+                }
+            }
+            else
+            {
+                if(isUrl && !string.IsNullOrEmpty(prop))
+                {
+                    prop = RegexValidateUtil.getAbsoluteUrlFromRelative(prop, sourceUrl);
+                }
+                props.Add(prop.Trim());
+            }
+
+            return props;
+
+        }
+
+        public static string GetPictureUrl(string html, Selector selector, string sourceUrl)
+        {
+            try
+            {
+                var parser = new HtmlParser();
+                IHtmlDocument element = parser.Parse(html);
+                return ParseSingleProperty(element, selector, sourceUrl, true);
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+
+        /*
+        public static string GetVideoUrl(string html,string sourceUrl)
+        {
+            try
+            {
+                var parser = new HtmlParser();
+                IHtmlDocument element = parser.Parse(html);
+                return ParseSingleProperty(element, selector, sourceUrl, true);
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+        */
+
+    }
+}
