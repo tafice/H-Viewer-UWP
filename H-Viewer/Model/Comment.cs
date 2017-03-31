@@ -8,9 +8,12 @@ namespace HViewer.Model
 {
     public class Comment
     {
-        public int cid;
-        public string avatar, author, datetime, content;
-        public string referer;
+        public int cid { get; set; }
+        public string avatar { get; set; }
+        public string author { get; set; }
+        public string datetime { get; set; }
+        public string content { get; set; }
+        public string referer { get; set; }
 
         public Comment(int cid, string avatar, string author, string datetime, string content, string referer)
         {

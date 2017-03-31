@@ -93,11 +93,13 @@ namespace HViewer.Core
             catch (FormatException) { }
 
             int realPage = page + (page - startPage) * (pageStep - 1);
-            url = url.Replace("\\{pageStr:(.*?\\{.*?\\}.*?)\\}", (realPage == startPage) ? "" : matchResult["pageStr"])
-                .Replace("\\{page:.*?\\}", "" + realPage)
-                .Replace("\\{keyword:.*?\\}", keyword)
-                .Replace("\\{idCode:\\}", idCode);
-
+            url = Regex.Replace(url, "\\{page:.*?\\}", "" + realPage);
+            url = Regex.Replace(url, "\\{keyword:.*?\\}", keyword);
+            url = Regex.Replace(url, "\\{idCode:\\}", idCode);
+            if (matchResult.ContainsKey("pageStr"))
+            {
+                url = Regex.Replace(url, "\\{pageStr:(.*?\\{.*?\\}.*?)\\}", (realPage == startPage) ? "" : matchResult["pageStr"]);
+            }
             /* TODO
             if (matchResult.ContainsKey("date")
             {
@@ -860,7 +862,9 @@ namespace HViewer.Core
                             prop = RegexValidateUtil.getAbsoluteUrlFromRelative(prop, sourceUrl);
                         }
                         props.Add(System.Net.WebUtility.HtmlEncode(prop.Trim()));
-                    } while ((m.NextMatch().Success && m.Groups.Count >= 1));
+
+                        m = m.NextMatch();
+                    } while ((m.Success && m.Groups.Count >= 1));
                     
                 }
 
