@@ -9,10 +9,11 @@ namespace HViewer.Model
     public class Category
     {
 
-        public int cid;
-        public string title, url;
+        public int cid { get; set; }
+        public string title { get; set; }
+        public string url { get; set; }
 
-        public Category(int cid, string title, string url)
+    public Category(int cid, string title, string url)
         {
             this.cid = cid;
             this.title = title;

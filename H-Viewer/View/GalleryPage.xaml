@@ -1,0 +1,104 @@
+﻿<Page
+    x:Class="HViewer.View.GalleryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:HViewer.View"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:control="using:HViewer.Control"
+    xmlns:model ="using:HViewer.Model"
+    xmlns:tookit="using:Microsoft.Toolkit.Uwp.UI.Controls"
+    xmlns:interactivity="using:Microsoft.Xaml.Interactivity"
+    xmlns:rate="using:MetroRate"
+    xmlns:behaviors="using:Microsoft.Toolkit.Uwp.UI.Animations.Behaviors"
+    mc:Ignorable="d">
+
+    <Page.Resources>
+        <Style x:Key="MyGridViewItemPresenterTemplate" TargetType="GridViewItem">
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="Margin" Value="0,0,8,4"/>
+        </Style>
+
+        <Style x:Key="GalleryViewItemPresenterTemplate" TargetType="GridViewItem">
+            <Setter Property="Margin" Value="0,0,4,4"/>
+        </Style>
+
+        <DataTemplate x:Name="SampleTemplate" x:DataType="model:Picture">
+            <Grid Name="CollectonItem" Width="128" Height="192">
+                <tookit:ImageEx Source="{x:Bind thumbnail}" ImageFailed="Cover_ImageFailed" VerticalAlignment="Center" HorizontalAlignment="Center" Stretch="UniformToFill"/>
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
+
+
+    <ScrollViewer VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto">
+        <Grid Background="#FFE9E9E9">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="0.5*"/>
+                <ColumnDefinition Width="9*"/>
+                <ColumnDefinition Width="0.5*"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Height="256" Grid.Column="0" Grid.ColumnSpan="3" VerticalAlignment="Top" >
+                <tookit:ImageEx x:Name="cover" Source="{x:Bind _collection.cover}" VerticalAlignment="Center" HorizontalAlignment="Center" Stretch="UniformToFill">
+                    <interactivity:Interaction.Behaviors>
+                        <behaviors:Blur x:Name="BlurBehavior" 
+           Value="10" 
+           Duration="500" 
+           Delay="250" 
+           AutomaticallyStart="True"/>
+                    </interactivity:Interaction.Behaviors>
+                    <tookit:ImageEx.RenderTransform>
+                        <CompositeTransform x:Name="CTransform" CenterY="0.5" CenterX="0.5"/>
+                    </tookit:ImageEx.RenderTransform>
+                </tookit:ImageEx>
+                <TextBlock x:Name="title" Text="{x:Bind _collection.title}" FontSize="36" Foreground="White" Margin="36,192,0,0"/>
+            </Grid>
+
+            <StackPanel Grid.Column="1" Margin="0,256,0,0">
+                <Grid Background="White" Height="200" Margin="16,16,16,0">
+                    <StackPanel Margin="16,16,0,0">
+                        <TextBlock x:Name="uploader" Text="{x:Bind _collection.uploader}" FontSize="16" Foreground="Black"/>
+                        <TextBlock x:Name="category" Text="{x:Bind _collection.category}" FontSize="16" Foreground="Black" Margin="0,4,0,0"/>
+                        <GridView x:Name="TagList" 
+                              Margin="0,4,0,0"
+                              Height="108" 
+                              ItemsSource="{x:Bind _collection.tags}"
+                              ItemContainerStyle="{StaticResource MyGridViewItemPresenterTemplate}"
+                                                    SelectionMode="None"
+                  IsItemClickEnabled="True"
+                              ScrollViewer.VerticalScrollBarVisibility="Disabled" 
+                              ScrollViewer.VerticalScrollMode="Disabled"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              ScrollViewer.HorizontalScrollMode="Enabled">
+                            <GridView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Background="#FF009688">
+                                        <TextBlock Foreground="White" FontSize="14" Text="{Binding title}" Margin="10,5"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </GridView.ItemTemplate>
+                            <GridView.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <control:WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </GridView.ItemsPanel>
+                        </GridView>
+                    </StackPanel>
+                    <rate:RatingsControl 
+                    Grid.Column="1" Value="{x:Bind _collection.rating}" NumberOfStars="5" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,0,0,8" StarForegroundColor="#FF009688" StarOutlineColor="Transparent" BackgroundColor="White"/>
+                    <TextBlock Name="submittime" Text="{x:Bind _collection.datetime}" Foreground="Gray" Margin="0,0,8,8" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+                </Grid>
+                <Grid Background="White" Margin="16,16,16,0">
+                    <GridView x:Name="galleryView"
+                  SelectionMode="None"
+                  IncrementalLoadingTrigger="Edge"
+                  IsItemClickEnabled="True"
+                  ItemClick="gridView_ItemClick"
+                  ItemContainerStyle="{StaticResource GalleryViewItemPresenterTemplate}"
+                  ItemTemplate="{StaticResource SampleTemplate}" Margin="8,8,0,8" />
+                </Grid>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,85 @@
+﻿<Page
+    x:Class="HViewer.View.CollectionPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:HViewer.View"
+    xmlns:model="using:HViewer.Model"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:toolkit="using:Microsoft.Toolkit.Uwp.UI.Controls"
+    xmlns:rate="using:MetroRate"
+    xmlns:control="using:HViewer.Control"
+    mc:Ignorable="d">
+
+    <Page.Resources>
+        <Style x:Key="MyGridViewItemPresenterTemplate" TargetType="GridViewItem">
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="Margin" Value="0,0,8,4"/>
+        </Style>
+
+        <DataTemplate x:Name="SampleTemplate2" x:DataType="model:Collection">
+            <Grid Name="CollectonItem" Width="428" Height="192">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="128"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <toolkit:ImageEx x:Name="Cover" Width="128" Height="192" Source="{x:Bind cover}" ImageFailed="Cover_ImageFailed" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" Stretch="UniformToFill"/>
+                <StackPanel Grid.Column="1" Padding="8">
+                    <TextBlock x:Name="Title" Text="{x:Bind title}" FontSize="18"/>
+                    <TextBlock x:Name="Uploader" Text="{x:Bind uploader}" FontSize="16" Foreground="Gray" />
+                    <TextBlock x:Name="category" Text="{x:Bind category}" FontSize="16" Foreground="Gray"/>
+                    <GridView x:Name="TagList" 
+                              Margin="0,2,0,0"
+                              Height="80" 
+                              ItemsSource="{x:Bind tags}" 
+                              ItemContainerStyle="{StaticResource MyGridViewItemPresenterTemplate}"
+                              SelectionMode="None"
+                              IsItemClickEnabled="True"
+                              ScrollViewer.VerticalScrollBarVisibility="Disabled" 
+                              ScrollViewer.VerticalScrollMode="Disabled"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              ScrollViewer.HorizontalScrollMode="Enabled">
+                        <GridView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Background="#FF009688">
+                                    <TextBlock Foreground="White" FontSize="14" Text="{Binding title}" Margin="10,5"/>
+                                </Grid>
+                            </DataTemplate>
+                        </GridView.ItemTemplate>
+                        <GridView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <control:WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </GridView.ItemsPanel>
+                    </GridView>
+                </StackPanel>
+                <TextBlock Name="submittime" Grid.Column="1" Text="{x:Bind datetime}" Foreground="Gray" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,4"/>
+                <rate:RatingsControl 
+                    Grid.Column="1"    
+                    Value="{x:Bind rating}"
+                          
+                          NumberOfStars="5" 
+                          HorizontalAlignment="Left"
+                          VerticalAlignment="Bottom"
+                          Margin="8,0,0,4"
+                          StarForegroundColor="#FF009688"
+                    
+                          StarOutlineColor="Transparent"
+                          BackgroundColor="White"/>
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <GridView Grid.Column="0"
+                  Margin="0" 
+                  HorizontalContentAlignment="Stretch" 
+                  VerticalContentAlignment="Stretch"
+                  x:Name="gridView" 
+                  SelectionMode="None"
+                  IsItemClickEnabled="True"
+                  IncrementalLoadingTrigger="Edge"
+                  ItemClick="gridView_ItemClick"
+                  ItemTemplate="{StaticResource SampleTemplate2}" />
+    </Grid>
+</Page>

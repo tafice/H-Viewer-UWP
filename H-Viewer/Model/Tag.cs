@@ -8,9 +8,9 @@ namespace HViewer.Model
 {
     public class Tag
     {
-        public int tid;
-        public string title = "";
-        public string url;
+        public int tid { get; set; }
+        public string title { get; set; }
+        public string url { get; set; }
         public bool selected = false;
 
         public Tag(int tid, string title)
@@ -28,6 +28,11 @@ namespace HViewer.Model
         public int getId()
         {
             return tid;
+        }
+
+        public new string ToString()
+        {
+            return title;
         }
     }
 }

@@ -4,49 +4,47 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:HViewer.View"
     xmlns:model="using:HViewer.Model"
+    xmlns:rate="using:MetroRate"
     xmlns:toolkit="using:Microsoft.Toolkit.Uwp.UI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:control="using:HViewer.Control"
     mc:Ignorable="d">
 
-    <Page.Resources>
-        <DataTemplate x:Name="SampleTemplate" x:DataType="model:Collection">
-            <Grid Name="CollectonItem" Width="608" Height="348">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="233"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <toolkit:ImageEx x:Name="Cover" Width="233" Height="348" Source="{x:Bind cover}" ImageFailed="Cover_ImageFailed" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Stretch="UniformToFill"/>
-                <StackPanel Grid.Column="1" Padding="10">
-                    <TextBlock x:Name="Title" Text="{x:Bind title}" FontSize="20"/>
-                    <TextBlock x:Name="Uploader" Text="{x:Bind uploader}" Foreground="Gray" />
-                    <TextBlock x:Name="category" Text="{x:Bind category}" Foreground="Gray"/>
-                </StackPanel>
-                <TextBlock Name="submittime" Grid.Column="1" Text="{x:Bind datetime}" Foreground="Gray" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,4"/>
-            </Grid>
-        </DataTemplate>
-    </Page.Resources>
-    
+
+
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="96"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="AdaptiveStates" CurrentStateChanged="AdaptiveStates_CurrentStateChanged">
+                <VisualState x:Name="DefaultState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="720"></AdaptiveTrigger>
+                    </VisualState.StateTriggers>
+                </VisualState>
+                <VisualState x:Name="NarrowState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0"></AdaptiveTrigger>
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="MasterColumn.Width" Value="*" />
+                        <Setter Target="DetailColumn.Width" Value="0" />
+                        <Setter Target="DetailFrame.(Grid.Column)" Value="0"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
 
-        <StackPanel Grid.Row="0">
-            <TextBox Name="txtBox" TextWrapping="Wrap" Text="" PlaceholderText="Site Url" Margin="0,4,0,0"/>
-            <Button Content="Test" HorizontalAlignment="Left" VerticalAlignment="Top" Click="Button_Click" Margin="0,8,0,0" Width="128"/>
-        </StackPanel>
-        <GridView Grid.Row="1" 
-                  Margin="0" 
-                  HorizontalContentAlignment="Stretch" 
-                  VerticalContentAlignment="Stretch"
-                  x:Name="gridView" 
-                  SelectionMode="None"
-                  IsItemClickEnabled="True"
-                  IncrementalLoadingTrigger="Edge"
-                  ItemClick="gridView_ItemClick"
-                  ItemTemplate="{StaticResource SampleTemplate}" />
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="MasterColumn" Width="448" />
+            <ColumnDefinition x:Name="DetailColumn" Width="*" />
+        </Grid.ColumnDefinitions>
 
+        <Frame x:Name="MasterFrame" Grid.Column="0" x:FieldModifier="Public">
+
+        </Frame>
+
+        <Frame x:Name="DetailFrame" Grid.Column="1" x:FieldModifier="Public">
+
+        </Frame>
     </Grid>
 </Page>

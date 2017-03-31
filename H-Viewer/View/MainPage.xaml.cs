@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Storage.Streams;
+using Windows.UI.Core;
 using Windows.UI.Popups;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -32,126 +33,64 @@ namespace HViewer.View
     /// </summary>
     public sealed partial class MainPage : Page
     {
+        public static MainPage Current;
+
         public MainPage()
         {
             this.InitializeComponent();
-
-
+            Current = this;
+            DetailFrame.Navigated += DetailFrame_Navigated;
+            MasterFrame.Navigated += MasterFrame_Navigated;
+            SystemNavigationManager.GetForCurrentView().BackRequested += View_BackRequested;
         }
 
-        public int StartPage;
-        public int CurrentPage;
-        private Site site;
-        private Dictionary<string, string> matchResult;
-        private string currUrl;
-        private string keyword;
-
-        public async Task DoWorkAsync()
+        protected override void OnNavigatedTo(NavigationEventArgs e)
         {
-            using (HttpClient hc = new HttpClient())
+            MasterFrame.Navigate(typeof(CollectionPage));
+            DetailFrame.Navigate(typeof(GalleryPage));
+        }
+
+
+        private void View_BackRequested(object sender, BackRequestedEventArgs e)
+        {
+            if (DetailFrame.CanGoBack)
             {
-                Uri uri = new Uri(txtBox.Text);
-                string s1 = await hc.GetStringAsync(uri);
-
-                if (!string.IsNullOrEmpty(s1))
-                {
-                    Site site = JsonConvert.DeserializeObject<Site>(s1);
-
-                    if (site != null)
-                    {
-                        int page = 0;
-                        ParseUrl(site.indexUrl);
-                        currUrl = site.indexUrl;
-                        string url;
-                        if (CurrentPage == StartPage)
-                        {
-                            url = currUrl.Replace("{pageStr:(.*?{.*?}.*?)}", "")
-                                    .Replace("{page:" + StartPage + "}", "" + page)
-                                    .Replace("{keyword:}", keyword);
-                        }
-                        else
-                        {
-                            url = currUrl.Replace("{page:" + StartPage + "}", "" + page).Replace("{keyword:}", keyword);
-                            if (matchResult.ContainsKey("pageStr"))
-                            {
-                                url.Replace("{pageStr:(.*?{.*?}.*?)}", (page == StartPage) ? "" : "" + matchResult["pageStr"]);
-                            }
-
-                        }
-
-                        string s = null;
-                        try
-                        {
-                            //s = await hc.GetStringAsync(uri);
-                            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Get, new Uri(url));
-                            httpRequest.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.116 Safari/537.36");
-                            HttpResponseMessage responseAsync = await hc.SendRequestAsync(httpRequest);
-
-                            responseAsync.EnsureSuccessStatusCode();
-
-                            IBuffer asyncBuffer = await responseAsync.Content.ReadAsBufferAsync();
-                            byte[] resultByteArray = asyncBuffer.ToArray();
-
-                            EncodingProvider provider = CodePagesEncodingProvider.Instance;
-                            Encoding.RegisterProvider(provider);
-
-                            s = Encoding.GetEncoding("UTF-8").GetString(resultByteArray, 0, resultByteArray.Length);
-                        }
-                        catch (Exception e)
-                        {
-                            new MessageDialog(e.StackTrace, e.Message).ShowAsync();
-                        }
-                        if (!string.IsNullOrEmpty(s))
-                        {
-                            List<Collection> list = new List<Collection>();
-                            RuleParser.GetCollections(list, s, site.indexRule, url, false);
-
-                            gridView.ItemsSource = list;
-                        }
-                    }
-                    else
-                    {
-                        throw new Exception("Error");
-                    }
-                }
-                else
-                {
-                    throw new Exception("Error");
-                }
+                DetailFrame.GoBack();
+                e.Handled = true;
+            }
+            else if (MasterFrame.CanGoBack)
+            {
+                MasterFrame.GoBack();
+                e.Handled = true;
             }
         }
 
-        private void ParseUrl(string url)
+        private void MasterFrame_Navigated(object sender, NavigationEventArgs e)
         {
-            matchResult = RuleParser.ParseUrl(url);
+            UpdateUI();
+        }
 
-            string pageStr = matchResult["page"];
-            try
+        private void DetailFrame_Navigated(object sender, NavigationEventArgs e)
+        {
+            while (DetailFrame.BackStack.Count > 1)
             {
-                StartPage = (pageStr != null) ? int.Parse(pageStr) : 0;
+                DetailFrame.BackStack.RemoveAt(1);
             }
-            catch (Exception)
+            UpdateUI();
+        }
+
+        private void AdaptiveStates_CurrentStateChanged(object sender, VisualStateChangedEventArgs e)
+        {
+            UpdateUI();
+        }
+
+        private void UpdateUI()
+        {
+            if (AdaptiveStates.CurrentState.Name == "NarrowState")
             {
-                StartPage = 0;
+                DetailFrame.Visibility = DetailFrame.CanGoBack ? Visibility.Visible : Visibility.Collapsed;
             }
-            CurrentPage = StartPage;
-        }
-
-        private void Button_Click(object sender, RoutedEventArgs e)
-        {
-            DoWorkAsync();
-        }
-
-        private void Cover_ImageFailed(object sender, ExceptionRoutedEventArgs e)
-        {
-            ImageEx image = (ImageEx)sender;
-            image.Source = new BitmapImage(new Uri("ms-appx:///Assets/ImageLoadError.png"));
-        }
-
-        private void gridView_ItemClick(object sender, ItemClickEventArgs e)
-        {
-            var dialog = new MessageDialog(((Collection)e.ClickedItem).ToString(), "Collection");
-            dialog.ShowAsync();
+            SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility = DetailFrame.CanGoBack || MasterFrame.CanGoBack ? AppViewBackButtonVisibility.Visible : AppViewBackButtonVisibility.Collapsed;
         }
     }
 }
